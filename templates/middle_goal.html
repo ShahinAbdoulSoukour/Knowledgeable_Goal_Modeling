@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %} Middle goal creation {% endblock %}
+
+{% block content %}
+
+<br>
+
+<div class="justify-content-center align-items-center container">
+    <p><b>Parent goal</b>: {{ highlevelgoal }}</p>
+    <form id="myForm" action="/middle_goal" method="POST" enctype="multipart/form-data" class="justify-content-center">
+        <div class="input-group mb-3">
+            <!-- Goal type -->
+            <div class="input-group-prepend">
+                <select id="goal_type" class="form-select text-black-50 bg-light" name="goal_type" aria-label="goal_type_selection" data-toggle="tooltip" data-placement="bottom" title="Whether your subgoal will express a property that a system should satisfy (<b>ACHIEVE</b>) or a property that should never be satisfied (<b>AVOID</b>)">
+                    <option hidden disabled selected value="">Goal type</option>
+                    <option value="ACHIEVE">ACHIEVE</option>
+                    <option value="AVOID">AVOID</option>
+                </select>
+            </div>
+
+            <!-- Input - High-level goal -->
+            <input type="text" class="form-control" placeholder="Enter the goal" name="goal_name" id="input-datalist" list="list-goal" required>
+            <datalist id="list-goal">
+                {% for g in all_goal %}
+                    <option value="{{ g.goal_name }}"></option>
+                {% endfor %}
+            </datalist>
+        </div>
+
+        {% if subgoals|length > 1 %}
+            <div class="mb-3">
+                <!-- Select multiple subgoals -->
+                <label for="subgoal_id" class="form-label">Select Subgoal(s)</label>
+                <select class="form-control select2 select2-hidden-accessible text-black-50 bg-light" required multiple id="subgoal_id" name="subgoal_id" data-placeholder="Select subgoal(s)" style="width: 100%;" tabindex="-1" aria-hidden="true">
+                    {% for sg in subgoals %}
+                        <option value="{{ sg.id }}">{{ sg.goal_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        {% else %}
+            <!-- Hidden input field for the single subgoal -->
+            <input type="hidden" id="subgoal_id" name="subgoal_id" value="{{ subgoals[0].id }}">
+        {% endif %}
+
+        <div class="mb-3 text-center">
+            <!-- Submit button -->
+            <button type="button" class="btn btn-primary" id="okBtn">OK</button>
+        </div>
+
+        {% if refinement_type is defined %}
+            <input type="hidden" name="refinement_type" value="{{ refinement_type }}">
+        {% else %}
+            <input type="hidden" name="refinement_type" value="AND">
+        {% endif %}
+        {% if hlg_id is defined %}
+            <input type="hidden" name="hlg_id" value="{{ hlg_id }}">
+        {% else %}
+            <input type="hidden" name="hlg_id" value="-1">
+        {% endif %}
+    </form>
+    <p class="alert alert-info" role="alert"><strong>Reminder</strong>: A goal should start with an action verb and must be composed of a single sentence with a small number of clauses (e.g., "Anticipate the impact of floods on people").</p>
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready( function () {
+        $('#createGoalNav a').addClass('active')
+        $('[data-toggle="tooltip"]').tooltip({"html": true, "placement": "bottom", "trigger": "hover"})
+        $('[data-toggle="tooltip"]').click(function() {
+            $('[data-toggle="tooltip"]').tooltip("hide", {"html": true, "placement": "bottom", "trigger": "hover"})
+        })
+        $('#data_triples').DataTable()
+
+        $("select").on("change", function() {
+            $(this).removeClass("text-black-50 bg-light")
+            $(this).css("background-color", "#ffffff")
+            $(this).css("color", "#172b4d")
+        })
+        $('#subgoal_id').on("change", function() {
+            $('#subgoal_id').siblings(".select2-container").find(".select2-selection").css("background-color", "#ffffff")
+        })
+        $("#input-datalist").on("input", function() {
+            $(this).css("background-color", "#ffffff")
+        })
+        $("#okBtn").click(function() {
+            if ($("#input-datalist").val() && $("#goal_type").val() && $("#subgoal_id").val().length) {
+                $(this).prop("disabled", true);
+                $(this).html(`<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>`);
+
+                $("#loadingModal").modal({
+                    "backdrop": "static",
+                    "keyboard": false
+                }).modal("show");
+
+                $("#myForm").submit();
+            } else {
+                if (!$("#input-datalist").val()) {
+                    console.log("a")
+                    $("#input-datalist").removeClass("text-black-50 bg-light")
+                    $("#input-datalist").css("background-color", "#ffda69");
+                }
+                if (!$("#goal_type").val()) {
+                    console.log("b")
+                    $("#goal_type").removeClass("text-black-50 bg-light")
+                    $("#goal_type").css("background-color", "#ffda69")
+                }
+                if (!$("#subgoal_id").val().length) {
+                    $('#subgoal_id').siblings(".select2-container").find(".select2-selection").css("background-color", "#ffda69");
+                }
+            }
+        });
+        $('.select2').select2({
+            closeOnSelect: false
+        });
+    });
+</script>
+{% endblock %}

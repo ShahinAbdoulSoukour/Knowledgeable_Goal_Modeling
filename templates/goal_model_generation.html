@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %} Goal model generation {% endblock %}
+
+{% block content %}
+<br>
+
+<!--<div class="modal" tabindex="-1" role="dialog">-->
+<!--  <div class="modal-dialog" role="document">-->
+<!--    <div class="modal-content">-->
+<!--      <div class="modal-header">-->
+<!--        <h5 class="modal-title">Change the refinement link</h5>-->
+<!--        <button type="button" class="close" data-dismiss="modal" aria-label="Close">-->
+<!--          <span aria-hidden="true">&times;</span>-->
+<!--        </button>-->
+<!--      </div>-->
+<!--      <form >-->
+<!--        <div class="modal-body">-->
+<!--          <select id="refinement" class="form-select text-black-50 bg-light" name="refinement" aria-label="refinement_selection" data-toggle="tooltip" data-placement="bottom" title="Whether your subgoal: <ul><li>should be satisfied additionally to its sibling goals (<b>AND</b> refinement)</li><li>is among a set of goals of which at least one should be satisfied (<b>OR</b> refinement)</li><li>is among a set of goals of which exactly one should be satisfied (<b>XOR</b> refinement)</li></ul>... to fulfill its parent.<br><br>If you do not plan to add siblings to your goal, use the <b>AND</b> refinement.">-->
+<!--            <option hidden disabled selected value="">Refinement</option>-->
+<!--            <option value="AND">AND</option>-->
+<!--            <option value="OR">OR</option>-->
+<!--            <option value="XOR">XOR</option>-->
+<!--          </select>-->
+<!--          <input type="hidden" name="hlg_id" value="-1">-->
+<!--        </div>-->
+<!--        <div class="modal-footer">-->
+<!--          <button type="button" class="btn btn-primary">Save changes</button>-->
+<!--          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>-->
+<!--        </div>-->
+<!--      </form>-->
+<!--    </div>-->
+<!--  </div>-->
+<!--</div>-->
+
+{% if hierarchy_data %}
+    <!-- Display the goal model -->
+    <div id="goal_model_div"></div>
+
+    <!-- TODO: Export the goal model into JPG/JPEG/XML -->
+    <!-- TODO: Operation -->
+{% else %}
+    <div class="alert alert-danger" role="alert">
+        No data!
+    </div>
+{% endif %}
+
+{% endblock %}
+
+
+{% block scripts %}
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+    google.charts.load('current', {packages:["orgchart"]});
+    google.charts.setOnLoadCallback(drawChart);
+
+    function drawChart() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Name');
+        data.addColumn('string', 'Manager');
+        data.addColumn('string', 'ToolTip');
+
+        // Get the hierarchy data
+        var hierarchyData = {{ hierarchy_data|tojson }};
+
+        // Collect all high-level goal IDs to determine leaf nodes
+        var highLevelGoalIds = new Set(); // Collection
+        hierarchyData.forEach(function(item) {
+            highLevelGoalIds.add(item.high_level_goal_id);
+        });
+
+        // Track refinement nodes have already been added to the goal model
+        var refinementMap = {};
+
+        // Track subgoal nodes that are considered leaf nodes
+        var leafNodes = new Set();
+
+        // Create rows for the org chart (each row represents a node and its relationship to a parent)
+        var rows = [];
+
+        hierarchyData.forEach(function(item) {
+            var highLevelGoalId = item.high_level_goal_id;
+            var subgoalId = item.subgoal_id;
+
+            // Construct the content for subgoal and high-level goal
+            var subgoalContent = '[' + item.subgoal_goal_type + '] ' + '<a href="/contextualization/' + subgoalId + '">' +item.subgoal_name + '</a>';
+            var highLevelGoalContent = item.high_level_goal_name ? '[' + item.high_level_goal_goal_type + '] ' + '<a href="/contextualization/' + highLevelGoalId + '">' + item.high_level_goal_name + '</a>' : null;
+
+            // Check if this refinement node already exists
+            var refinementNode = item.refinement ? item.refinement + ' (' + item.hierarchy_id + ')' : null;
+
+            // Determine if this subgoal is a leaf node
+            // To check if the subgoal is included in the high-level goal collection
+            // If it is, this means that the subgoal is also a high-level goal
+            var isLeaf = !highLevelGoalIds.has(subgoalId);
+
+            // Add delete button to each leaf goals
+            if (isLeaf) {
+                subgoalContent += ' <span style="white-space: nowrap;">' +
+                    '<form method="POST" action="/goal_model_generation" style="display:inline;" onsubmit="return confirm(\'Are you sure you want to delete this subgoal?\');">' +
+                    '<input type="hidden" name="subgoal_id" value="' + item.subgoal_id + '">' +
+                    '<button type="submit" class="btn btn-outline-danger" title="❌ Delete this leaf goal" >' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">' +
+                    '<path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>' +
+                    '<path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>' +
+                    '</svg>' +
+                    '</button>' +
+                    '</form>' +
+                    '</span>';
+            }
+
+            if (item.refinement) {
+                // Use a combination of refinement name and parent goal ID to avoid duplicates
+                // Combinaison of the refinement text and the high-level goal ID to create a unique key
+                var refinementKey = item.refinement + ' (' + highLevelGoalId + ')';
+
+                // Only add the refinement node if it hasn't been added before
+                if (!refinementMap[refinementKey]) {
+                    refinementMap[refinementKey] = refinementNode;
+
+                    // Add the refinement node (linked to its parent goal)
+                    rows.push([
+                        {
+                            'v': refinementNode,
+                            'f': '<div class="refinement-node" style="background-color: #e0e0e0;">' +
+                                  item.refinement +
+                                  // '<span style="white-space: nowrap;">' +
+                                  // '<button type="button" class="btn btn-outline-warning" data-refinement-id=" data-toggle="tooltip" data-placement="bottom" title="Change refinement link">' +
+                                  // '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">' +
+                                  // '<path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>' +
+                                  // '<path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>' +
+                                  // '</svg>' +
+                                  // '</button>' +
+                                  // '</span>'+
+                                  '<span style="white-space: nowrap;">' +
+                                  '<a type="button" class="btn btn-outline-success" href="/middle_goal/' + highLevelGoalId + '?refinement_type=' + item.refinement +'" data-toggle="tooltip" data-placement="bottom" title="➕ Add intermediary goal">' +
+                                  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-lg" viewBox="0 0 16 16">' +
+                                  '<path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/>' +
+                                  '</svg>' +
+                                  '</a>' +
+                                  '</span>'+
+                                  '</div>'
+                        },
+                        highLevelGoalContent,
+                        'Refinement: ' + item.refinement
+                    ]);
+                }
+
+                // Link the subgoal to the refinement node, establishing the hierarchy
+                rows.push([
+                    { 'v': subgoalContent, 'f': subgoalContent },
+                    refinementMap[refinementKey],
+                    '➕ Add a subgoal'
+                ]);
+
+                // Mark this subgoal as a leaf node
+                leafNodes.add(subgoalContent);
+
+            } else {
+                // Direct link between high-level goal and subgoal without refinement
+                // If a subgoal does not have a refinement, it is directly linked to the high-level goal, and this relationship is added to rows
+                rows.push([
+                    { 'v': subgoalContent, 'f': subgoalContent },
+                    highLevelGoalContent,
+                    '➕ Add a subgoal'
+                ]);
+
+                // Mark this subgoal as a leaf node
+                leafNodes.add(subgoalContent);
+            }
+        });
+
+        // Remove any refinement nodes that were wrongly marked as leaf nodes
+        rows = rows.filter(function(row) {
+            return !(leafNodes.has(row[0].v) && refinementMap[row[0].v]);
+        });
+
+        // Add rows to the data table
+        // It contains the complete set of nodes and their relationships
+        data.addRows(rows);
+
+        // Create and draw the chart
+        var chart = new google.visualization.OrgChart(document.getElementById('goal_model_div'));
+        chart.draw(data, { 'allowHtml': true });
+    }
+
+    $(document).ready( function () {
+        $('#visualizationNav a').addClass('active')
+        $('[data-toggle="tooltip"]').tooltip({"html": true, "placement": "bottom", "trigger": "hover"})
+        $('[data-toggle="tooltip"]').click(function() {
+            $('[data-toggle="tooltip"]').tooltip("hide", {"html": true, "placement": "bottom", "trigger": "hover"})
+        })
+    })
+</script>
+{% endblock %}
