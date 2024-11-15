@@ -2,7 +2,7 @@
 
 # Knowledgeable Goal Modeling
 
-We provide the code used for our paper "An Interactive Tool for Goal Model Construction using a Knowledge Graph", written by Shahin Abdoul Soukour, William Aboucaya and Nikolaos
+We provide the code used for our paper "An Interactive Tool for Goal Model Construction using a Knowledge Graph", written by Shahin ABDOUL SOUKOUR, William ABOUCAYA and Nikolaos GEORGANTAS.
 
 ## Installing the dependencies
 
