@@ -14,7 +14,7 @@ def anchor_points_extractor(goal_triples_df: pd.DataFrame, model: SentenceTransf
         ),
         axis=1
     )
-    goal_triples_df.sort_values(by=['SCORE'], inplace=True, ascending=False)
+    # goal_triples_df.sort_values(by=['SCORE'], inplace=True, ascending=False)
 
     highest_score = goal_triples_df['SCORE'].max()
 

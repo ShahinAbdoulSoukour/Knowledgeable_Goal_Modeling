@@ -32,14 +32,22 @@ def graph_explorator_bfs_optimized(df, goal, graph, model_sts, model_nli_name, t
                 "NLI_LABEL": row["NLI_LABEL"]
             }
         else:
-            heapq.heappush(priority_queue, (-row['ENTAILMENT'], row, 0))  # (negate score for max-heap, initial depth)
+            # Push a tuple containing the entailment score, row as a dictionary, and depth
+            #heapq.heappush(priority_queue, (-row['ENTAILMENT'], row.to_dict(), 0))  # (negate score for max-heap, initial depth)
+
+            # Push a tuple with four elements: (negative entailment score, unique idx, row dict, depth)
+            heapq.heappush(priority_queue,
+                           (-row['ENTAILMENT'], _, row.to_dict(), 0))  # (negate score for max-heap, unique ID)
 
     # BFS with beam search, depth check, and score comparison
     while priority_queue:
         print('\nPRIORITY QUEUE:')
         print(priority_queue)
 
-        current_entailment, current_row, depth = heapq.heappop(priority_queue)
+        #current_entailment, current_row, depth = heapq.heappop(priority_queue)
+
+        # Pop a tuple with four elements
+        current_entailment, idx, current_row, depth = heapq.heappop(priority_queue)
 
         print('\n-- CURRENT ENTAILMENT:')
         print(current_entailment)
@@ -73,7 +81,7 @@ def graph_explorator_bfs_optimized(df, goal, graph, model_sts, model_nli_name, t
         # Get triple neighbors
         neighbor_triples = get_neighbors(current_row["PREMISE"], current_row["PREMISE_SERIALIZED"], graph)
 
-        if neighbor_triples.empty:
+        if isinstance(neighbor_triples, pd.DataFrame) and neighbor_triples.empty:
             continue
 
         # Concatenate neighbors
@@ -97,22 +105,10 @@ def graph_explorator_bfs_optimized(df, goal, graph, model_sts, model_nli_name, t
         # Beam search: explore only the top `beam_width` neighbors
         concatenated_triples = concatenated_triples.head(beam_width).drop('SIMILARITY_SCORE', axis=1)
 
-        # other possibility
-        # Determine the score interval based on the highest similarity score
-        #highest_score = concatenated_triples['SIMILARITY_SCORE'].max()
-        #score_interval = [highest_score * beam_width, highest_score]
-
-        # Filter concatenated_triples to keep only those within the score interval
-        #filtered_concatenated_triples = concatenated_triples[
-        #    (concatenated_triples['SIMILARITY_SCORE'] >= score_interval[0]) &
-        #    (concatenated_triples['SIMILARITY_SCORE'] <= score_interval[1])
-        #    ].drop('SIMILARITY_SCORE', axis=1)
-
         print('\nTHE TOP beam_width NEIGHBORS:')
         print(concatenated_triples)
 
         # Apply entailment test to all triple neighbors and sort results by entailment score
-        #entailment_concatenate_triples_result = test_entailment_api(concatenated_triples, model_nli_name)
         entailment_concatenate_triples_result = test_entailment(concatenated_triples, tokenizer_nli, model_nli_name, model_nli, use_api)
         entailment_concatenate_triples_result.sort_values(by="ENTAILMENT", ascending=False, inplace=True)
 
@@ -147,7 +143,7 @@ def graph_explorator_bfs_optimized(df, goal, graph, model_sts, model_nli_name, t
             # Check if entailment score is increasing
             if new_entailment > previous_entailment_score:
                 # If score improves, push this neighbor for further exploration
-                heapq.heappush(priority_queue, (-new_entailment, neighbor_row, depth + 1))
+                heapq.heappush(priority_queue, (-new_entailment, idx, neighbor_row.to_dict(), depth + 1))
                 previous_entailment_score = new_entailment  # Update the previous score
             else:
                 # If the entailment score decreases, stop exploring further for this triple
