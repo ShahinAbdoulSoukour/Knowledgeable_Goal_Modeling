@@ -1,4 +1,5 @@
 [![python](https://img.shields.io/badge/python-3.9%20|%203.10%20|%203.11-blue.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
+[![GitHub](https://img.shields.io/github/license/ShahinAbdoulSoukour/Knowledgeable_Goal_Modeling)](./LICENSE)
 
 # Knowledgeable Goal Modeling
 
@@ -46,4 +47,8 @@ If you use HuggingFace Inference Endpoints, you can perform the NLI and sentimen
   HAL_ID = {hal-04907365},
   HAL_VERSION = {v2},
 }
-``` 
+```
+
+## License
+Copyright © 2025 Shahin ABDOUL SOUKOUR. This work (source code) is licensed under the [MIT License](./LICENSE).
+
